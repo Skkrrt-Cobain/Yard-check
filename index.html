@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0d0d0d" />
+  <title>Yard Check</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #18181b;
+      --surface2: #1f1f23;
+      --border: #2e2e35;
+      --accent: #3b82f6;
+      --accent-light: #1a2a4a;
+      --accent-dark: #2563eb;
+      --green: #10b981;
+      --green-light: #0d2a1f;
+      --red: #f87171;
+      --red-light: #2d1515;
+      --amber: #fbbf24;
+      --amber-light: #2d2008;
+      --text: #f1f1f3;
+      --text2: #9ca3af;
+      --text3: #52525b;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+      --nav-h: 64px;
+      --bottom-h: 72px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overscroll-behavior: none;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--nav-h);
+      background: #111114;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+      box-shadow: 0 1px 0 var(--border);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-icon {
+      font-size: 22px;
+    }
+
+    .nav-title {
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    .nav-sub {
+      color: var(--text3);
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .nav-date {
+      background: var(--surface2);
+      color: var(--text2);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-family: 'DM Mono', monospace;
+      white-space: nowrap;
+      border: 1px solid var(--border);
+    }
+
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--bottom-h);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      z-index: 100;
+      padding-bottom: env(safe-area-inset-bottom);
+      box-shadow: 0 -1px 0 var(--border);
+    }
+
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text3);
+      font-family: 'DM Sans', sans-serif;
+      transition: color 0.15s;
+      padding-top: 8px;
+    }
+
+    .tab-item.active {
+      color: var(--accent);
+    }
+
+    .tab-icon {
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .tab-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tab-badge {
+      position: absolute;
+      top: 6px;
+      right: calc(50% - 20px);
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+
+    .page {
+      position: fixed;
+      top: var(--nav-h);
+      bottom: var(--bottom-h);
+      left: 0;
+      right: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      display: none;
+      padding: 16px;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .card-header {
+      padding: 12px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--text2);
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    .instructions {
+      background: var(--accent-light);
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #93c5fd;
+      line-height: 1.7;
+    }
+
+    .instructions ol {
+      padding-left: 18px;
+    }
+
+    .instructions li {
+      margin-bottom: 2px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 14px 14px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: 'DM Mono', monospace;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    input::placeholder {
+      color: var(--text3);
+      font-weight: 400;
+    }
+
+    textarea {
+      resize: none;
+      min-height: 80px;
+      font-size: 15px;
+    }
+
+    .toggle-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .toggle-btn {
+      padding: 16px 10px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      color: var(--text2);
+      font-family: 'DM Sans', sans-serif;
+      line-height: 1.3;
+    }
+
+    .toggle-btn .btn-icon {
+      font-size: 22px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .toggle-btn:active {
+      transform: scale(0.97);
+    }
+
+    .toggle-btn.active-clean {
+      background: var(--green-light);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .toggle-btn.active-dirty {
+      background: var(--red-light);
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .toggle-btn.active-rear {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .toggle-btn.active-center {
+      background: var(--amber-light);
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-add {
+      width: 100%;
+      padding: 17px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+      transition: background 0.15s, transform 0.1s;
+      font-family: 'DM Sans', sans-serif;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-add:active {
+      transform: scale(0.98);
+      background: var(--accent-dark);
+    }
+
+    .trailer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 10px;
+      overflow: hidden;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .tc-unit {
+      font-family: 'DM Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 1px;
+    }
+
+    .tc-badges {
+      display: flex;
+      gap: 6px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .badge-clean {
+      background: var(--green-light);
+      color: var(--green);
+    }
+
+    .badge-dirty {
+      background: var(--red-light);
+      color: var(--red);
+    }
+
+    .badge-rear {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    .badge-center {
+      background: var(--amber-light);
+      color: var(--amber);
+    }
+
+    .tc-body {
+      padding: 12px 14px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tc-field {
+      flex: 1;
+      min-width: 90px;
+    }
+
+    .tc-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text3);
+      margin-bottom: 2px;
+    }
+
+    .tc-value {
+      font-size: 13px;
+      font-family: 'DM Mono', monospace;
+      color: var(--text2);
+    }
+
+    .tc-notes {
+      font-size: 13px;
+      color: var(--text2);
+      font-family: 'DM Sans', sans-serif;
+      width: 100%;
+    }
+
+    .btn-del {
+      background: none;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      font-size: 20px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+      line-height: 1;
+    }
+
+    .btn-del:active {
+      color: var(--red);
+      background: var(--red-light);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text3);
+    }
+
+    .empty-state .e-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state p {
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .export-bar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+
+    .export-count {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .export-label {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .btn-export {
+      padding: 12px 20px;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-export:active {
+      transform: scale(0.97);
+      background: #059669;
+    }
+
+    .history-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .hi-date {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .hi-meta {
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 12px;
+    }
+
+    .hi-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-outline {
+      flex: 1;
+      padding: 11px;
+      border: 2px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text2);
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+      text-align: center;
+    }
+
+    .btn-outline:active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .btn-outline.danger:active {
+      border-color: var(--red);
+      color: var(--red);
+      background: var(--red-light);
+    }
+
+    .count-chip {
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: calc(var(--bottom-h) + 12px);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #e2e8f0;
+      color: #0f172a;
+      padding: 12px 20px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      transition: all 0.25s;
+      z-index: 200;
+      pointer-events: none;
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--text3);
+      margin-bottom: 8px;
+      margin-top: 4px;
+      padding-left: 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="nav-icon">🚛</span>
+      <div>
+        <div class="nav-title">Yard Check</div>
+        <div class="nav-sub">Trailer Log</div>
+      </div>
+    </div>
+    <div class="nav-date" id="headerDate"></div>
+  </header>
+  <div class="page active" id="pageAdd">
+    <div class="card">
+      <div class="card-header"><span class="card-title">📋 How to Use</span></div>
+      <div class="card-body" style="padding:14px 16px;">
+        <div class="instructions">
+          <ol>
+            <li>Enter the trailer unit number</li>
+            <li>Tap <strong>Clean</strong> or <strong>Dirty</strong></li>
+            <li>Tap <strong>Rear</strong> or <strong>Center</strong> unload</li>
+            <li>Enter PM month number &amp; VIK as MM/YY</li>
+            <li>Add notes if needed, then tap <strong>Add Trailer</strong></li>
+            <li>Go to <strong>Today's List</strong> to export when done</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Add Trailer</span></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Unit Number</label>
+          <input type="text" id="unitInput" placeholder="e.g. 8842061" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" maxlength="10" oninput="this.value=this.value.toUpperCase().replace(/[^0-9A-Z\-]/g,'')" />
+        </div>
+        <div class="form-group">
+          <label>Condition</label>
+          <div class="toggle-group">
+            <button class="toggle-btn" id="btnClean" onclick="setToggle('condition','clean')"><span class="btn-icon">✅</span>Clean</button>
+            <button class="toggle-btn" id="btnDirty" onclick="setToggle('condition','dirty')"><span class="btn-icon">❌</span>Dirty</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Unload Type</label>
+          <div class="toggle-group">
+            <button class="toggle-btn" id="btnRear" onclick="setToggle('unload','rear')"><span class="btn-icon">↩️</span>Rear</button>
+            <button class="toggle-btn" id="btnCenter" onclick="setToggle('unload','center')"><span class="btn-icon">⊞</span>Center</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="date-row">
+            <div>
+              <label>PM Due (Month #)</label>
+              <input type="text" id="pmInput" placeholder="e.g. 3" inputmode="numeric" maxlength="2" autocomplete="off" />
+            </div>
+            <div>
+              <label>Last VIK (MM/YY)</label>
+              <input type="text" id="vikInput" placeholder="e.g. 03/25" inputmode="numeric" maxlength="5" autocomplete="off" oninput="autoSlashVIK(this)" />
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes (optional)</label>
+          <textarea id="notesInput" placeholder="Any additional notes..."></textarea>
+        </div>
+        <button class="btn-add" onclick="addTrailer()">+ Add Trailer</button>
+      </div>
+    </div>
+  </div>
+  <div class="page" id="pageList">
+    <div class="export-bar">
+      <div>
+        <div class="export-count" id="listCount">0</div>
+        <div class="export-label">trailers today</div>
+      </div>
+      <button class="btn-export" onclick="exportToday()">⬇ Export Excel</button>
+    </div>
+    <div id="trailerList">
+      <div class="empty-state">
+        <div class="e-icon">🚛</div>
+        <p>No trailers yet.<br>Go to <strong>Add</strong> to enter your first trailer.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page" id="pageHistory">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="section-label" style="margin:0;">Past Yard Checks</div>
+      <span class="count-chip" id="historyChip">0</span>
+    </div>
+    <div id="historyList">
+      <div class="empty-state">
+        <div class="e-icon">📋</div>
+        <p>No records yet.<br>Export a yard check to save it here.</p>
+      </div>
+    </div>
+  </div>
+  <nav class="bottom-bar">
+    <button class="tab-item active" id="tabAdd" onclick="switchPage('Add')"><span class="tab-icon">➕</span><span class="tab-label">Add</span></button>
+    <button class="tab-item" id="tabList" onclick="switchPage('List')" style="position:relative;"><span class="tab-icon">📋</span><span class="tab-label">Today's List</span><span class="tab-badge" id="tabBadge" style="display:none;">0</span></button>
+    <button class="tab-item" id="tabHistory" onclick="switchPage('History')"><span class="tab-icon">🗂</span><span class="tab-label">History</span></button>
+  </nav>
+  <div class="toast" id="toast"></div>
+  <script>
+    const todayKey = () => new Date().toISOString().slice(0, 10);
+    let sel = {
+      condition: null,
+      unload: null
+    };
+    let trailers = [];
+    window.onload = () => {
+      document.getElementById('headerDate').textContent = fmtDateDisplay(todayKey());
+      loadToday();
+      renderList();
+      renderHistory();
+    };
+
+    function switchPage(name) {
+      ['Add', 'List', 'History'].forEach(p => {
+        document.getElementById('page' + p).classList.toggle('active', p === name);
+        document.getElementById('tab' + p).classList.toggle('active', p === name);
+      });
+      if (name === 'History') renderHistory();
+      if (name === 'List') renderList();
+    }
+
+    function setToggle(group, val) {
+      sel[group] = val;
+      if (group === 'condition') {
+        document.getElementById('btnClean').className = 'toggle-btn' + (val === 'clean' ? ' active-clean' : '');
+        document.getElementById('btnDirty').className = 'toggle-btn' + (val === 'dirty' ? ' active-dirty' : '');
+      } else {
+        document.getElementById('btnRear').className = 'toggle-btn' + (val === 'rear' ? ' active-rear' : '');
+        document.getElementById('btnCenter').className = 'toggle-btn' + (val === 'center' ? ' active-center' : '');
+      }
+    }
+
+    function addTrailer() {
+      const unit = document.getElementById('unitInput').value.trim().toUpperCase();
+      if (!unit) {
+        toast('⚠️ Enter a unit number');
+        return;
+      }
+      if (!sel.condition) {
+        toast('⚠️ Select Clean or Dirty');
+        return;
+      }
+      if (!sel.unload) {
+        toast('⚠️ Select Rear or Center');
+        return;
+      }
+      const entry = {
+        id: Date.now(),
+        unit,
+        condition: sel.condition,
+        unload: sel.unload,
+        pm: document.getElementById('pmInput').value.trim(),
+        vik: document.getElementById('vikInput').value.trim(),
+        notes: document.getElementById('notesInput').value.trim(),
+      };
+      trailers.push(entry);
+      saveToday();
+      updateBadge();
+      resetForm();
+      toast('✓ Trailer ' + unit + ' added');
+    }
+
+    function resetForm() {
+      document.getElementById('unitInput').value = '';
+      document.getElementById('pmInput').value = '';
+      document.getElementById('vikInput').value = '';
+      document.getElementById('notesInput').value = '';
+      sel = {
+        condition: null,
+        unload: null
+      };
+      ['btnClean', 'btnDirty', 'btnRear', 'btnCenter'].forEach(id =>
+        document.getElementById(id).className = 'toggle-btn'
+      );
+      document.getElementById('unitInput').focus();
+    }
+
+    function renderList() {
+      const el = document.getElementById('trailerList');
+      document.getElementById('listCount').textContent = trailers.length;
+      updateBadge();
+      if (!trailers.length) {
+        el.innerHTML = '<div class="empty-state"><div class="e-icon">🚛</div><p>No trailers yet.<br>Go to <strong>Add</strong> to enter your first trailer.</p></div>';
+        return;
+      }
+      el.innerHTML = trailers.map(t => `
+      <div class="trailer-card">
+        <div class="tc-header">
+          <span class="tc-unit">${esc(t.unit)}</span>
+          <div class="tc-badges">
+            <span class="badge badge-${t.condition}">${cap(t.condition)}</span>
+            <span class="badge badge-${t.unload}">${cap(t.unload)}</span>
+          </div>
+          <button class="btn-del" onclick="deleteTrailer(${t.id})">✕</button>
+        </div>
+        <div class="tc-body">
+          <div class="tc-field"><div class="tc-label">PM Due</div><div class="tc-value">${esc(t.pm)||'—'}</div></div>
+          <div class="tc-field"><div class="tc-label">Last VIK</div><div class="tc-value">${esc(t.vik)||'—'}</div></div>
+          ${t.notes ? `<div class="tc-field" style="width:100%;flex-basis:100%;"><div class="tc-label">Notes</div><div class="tc-notes">${esc(t.notes)}</div></div>` : ''}
+        </div>
+      </div>
+    `).join('');
+    }
+
+    function deleteTrailer(id) {
+      trailers = trailers.filter(t => t.id !== id);
+      saveToday();
+      renderList();
+    }
+
+    function updateBadge() {
+      const badge = document.getElementById('tabBadge');
+      if (trailers.length > 0) {
+        badge.textContent = trailers.length;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function exportToday() {
+      if (!trailers.length) {
+        toast('Nothing to export yet');
+        return;
+      }
+      doExport(trailers, todayKey());
+      saveToHistory(todayKey(), trailers);
+      toast('✓ Exported & saved to history');
+      renderHistory();
+    }
+
+    function doExport(data, dateStr) {
+      const rows = [
+        ['UNIT #', 'Dirty or Clean', 'Rear or Center', 'PM', 'VIK', 'Notes'],
+        ...data.map(t => [t.unit, cap(t.condition), cap(t.unload), t.pm || '', t.vik || '', t.notes || ''])
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{
+        wch: 14
+      }, {
+        wch: 14
+      }, {
+        wch: 16
+      }, {
+        wch: 10
+      }, {
+        wch: 10
+      }, {
+        wch: 30
+      }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Yard Check ' + dateStr);
+      XLSX.writeFile(wb, 'yard-check-' + dateStr + '.xlsx');
+    }
+
+    function saveToday() {
+      localStorage.setItem('yc_today_' + todayKey(), JSON.stringify(trailers));
+    }
+
+    function loadToday() {
+      const s = localStorage.getItem('yc_today_' + todayKey());
+      trailers = s ? JSON.parse(s) : [];
+      updateBadge();
+    }
+
+    function saveToHistory(dateStr, data) {
+      let h = getHistory();
+      h[dateStr] = data;
+      localStorage.setItem('yc_history', JSON.stringify(h));
+    }
+
+    function getHistory() {
+      const h = localStorage.getItem('yc_history');
+      return h ? JSON.parse(h) : {};
+    }
+
+    function renderHistory() {
+      const history = getHistory();
+      const dates = Object.keys(history).sort((a, b) => b.localeCompare(a));
+      document.getElementById('historyChip').textContent = dates.length;
+      const el = document.getElementById('historyList');
+      if (!dates.length) {
+        el.innerHTML = '<div class="empty-state"><div class="e-icon">📋</div><p>No records yet.<br>Export a yard check to save it here.</p></div>';
+        return;
+      }
+      el.innerHTML = dates.map(d => {
+        const entries = history[d];
+        const clean = entries.filter(t => t.condition === 'clean').length;
+        const dirty = entries.filter(t => t.condition === 'dirty').length;
+        return `<div class="history-item"><div class="hi-date">${fmtDateDisplay(d)}</div><div class="hi-meta">${entries.length} trailers · ${clean} clean · ${dirty} dirty</div><div class="hi-actions"><button class="btn-outline" onclick="reExport('${d}')">⬇ Re-export</button><button class="btn-outline danger" onclick="deleteHistory('${d}')">🗑 Delete</button></div></div>`;
+      }).join('');
+    }
+
+    function reExport(d) {
+      const h = getHistory();
+      if (h[d]) {
+        doExport(h[d], d);
+        toast('✓ Re-exported');
+      }
+    }
+
+    function deleteHistory(d) {
+      if (!confirm('Delete record for ' + fmtDateDisplay(d) + '?')) return;
+      let h = getHistory();
+      delete h[d];
+      localStorage.setItem('yc_history', JSON.stringify(h));
+      renderHistory();
+      toast('Record deleted');
+    }
+
+    function autoSlashVIK(input) {
+      let val = input.value.replace(/\D/g, '');
+      if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2, 4);
+      input.value = val;
+    }
+
+    function fmtDateDisplay(d) {
+      if (!d) return '—';
+      const [y, m, day] = d.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return months[parseInt(m) - 1] + ' ' + parseInt(day) + ', ' + y;
+    }
+
+    function cap(s) {
+      return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+    }
+
+    function esc(s) {
+      return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    let toastTimer;
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+    }
+  </script>
+</body>
+
+</html>
