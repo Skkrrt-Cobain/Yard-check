@@ -8,7 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0d0d0d" />
   <title>Yard Check</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -721,7 +722,7 @@
         <div class="export-count" id="listCount">0</div>
         <div class="export-label">trailers today</div>
       </div>
-      <button class="btn-export" onclick="exportToday()">⬇ Export Excel</button>
+      <button class="btn-export" onclick="exportToday()">⬇ Export PDF</button>
     </div>
     <div id="trailerList">
       <div class="empty-state">
@@ -882,27 +883,94 @@
     }
 
     function doExport(data, dateStr) {
-      const rows = [
-        ['UNIT #', 'Dirty or Clean', 'Rear or Center', 'PM', 'VIK', 'Notes'],
-        ...data.map(t => [t.unit, cap(t.condition), cap(t.unload), t.pm || '', t.vik || '', t.notes || ''])
-      ];
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{
-        wch: 14
-      }, {
-        wch: 14
-      }, {
-        wch: 16
-      }, {
-        wch: 10
-      }, {
-        wch: 10
-      }, {
-        wch: 30
-      }];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Yard Check ' + dateStr);
-      XLSX.writeFile(wb, 'yard-check-' + dateStr + '.xlsx');
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+
+      // Title header bar
+      doc.setFillColor(30, 30, 35);
+      doc.rect(0, 0, doc.internal.pageSize.getWidth(), 50, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('YARD CHECK \u2014 DAILY TRAILER LOG', 40, 30);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(160, 160, 180);
+      doc.text('Date: ' + fmtDateDisplay(dateStr) + '     Total Trailers: ' + data.length, 40, 44);
+
+      // Table with light blue/green header and clean borders
+      doc.autoTable({
+        startY: 62,
+        head: [['UNIT #', 'Dirty or Clean', 'Rear or Center', 'PM', 'VIK', 'Notes']],
+        body: data.map(t => [
+          t.unit,
+          cap(t.condition),
+          cap(t.unload),
+          t.pm || '\u2014',
+          t.vik || '\u2014',
+          t.notes || ''
+        ]),
+        styles: {
+          font: 'helvetica',
+          fontSize: 11,
+          cellPadding: { top: 8, right: 10, bottom: 8, left: 10 },
+          lineColor: [160, 190, 210],
+          lineWidth: 0.75,
+          textColor: [20, 20, 30],
+          valign: 'middle',
+        },
+        headStyles: {
+          fillColor: [173, 216, 230],
+          textColor: [10, 10, 30],
+          fontStyle: 'bold',
+          fontSize: 11,
+          lineColor: [130, 175, 200],
+          lineWidth: 0.75,
+        },
+        bodyStyles: {
+          fillColor: [255, 255, 255],
+          lineColor: [160, 190, 210],
+          lineWidth: 0.75,
+        },
+        alternateRowStyles: {
+          fillColor: [245, 250, 255],
+        },
+        columnStyles: {
+          0: { cellWidth: 90,  fontStyle: 'bold', textColor: [10, 10, 20] },
+          1: { cellWidth: 100 },
+          2: { cellWidth: 110 },
+          3: { cellWidth: 55 },
+          4: { cellWidth: 65 },
+          5: { cellWidth: 'auto' },
+        },
+        tableLineColor: [160, 190, 210],
+        tableLineWidth: 0.75,
+        margin: { left: 40, right: 40 },
+        didParseCell: function(data) {
+          if (data.section === 'body') {
+            var val = data.cell.raw;
+            if (data.column.index === 1) {
+              if (val === 'Clean') { data.cell.styles.textColor = [5, 122, 85]; data.cell.styles.fontStyle = 'bold'; }
+              if (val === 'Dirty') { data.cell.styles.textColor = [185, 28, 28]; data.cell.styles.fontStyle = 'bold'; }
+            }
+            if (data.column.index === 2) {
+              if (val === 'Rear')   { data.cell.styles.textColor = [29, 78, 216]; data.cell.styles.fontStyle = 'bold'; }
+              if (val === 'Center') { data.cell.styles.textColor = [146, 64, 14]; data.cell.styles.fontStyle = 'bold'; }
+            }
+          }
+        }
+      });
+
+      // Footer line
+      var pageH = doc.internal.pageSize.getHeight();
+      var pageW = doc.internal.pageSize.getWidth();
+      doc.setDrawColor(160, 190, 210);
+      doc.line(40, pageH - 24, pageW - 40, pageH - 24);
+      doc.setFontSize(8);
+      doc.setTextColor(160, 160, 180);
+      doc.text('Generated by Yard Check App \u00B7 ' + fmtDateDisplay(dateStr), 40, pageH - 10);
+
+      doc.save('yard-check-' + dateStr + '.pdf');
     }
 
     function saveToday() {
